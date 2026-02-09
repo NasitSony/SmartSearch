@@ -19,9 +19,11 @@ import jakarta.persistence.Transient;
 public class DocumentEntity {
 
 
-	//@Enumerated(EnumType.STRING)
-	//@Column(nullable = false)
-	//private DocumentStatus status = DocumentStatus.PENDING;
+	@Id
+	private String id;
+
+	@Column(name = "text", nullable = false, columnDefinition = "TEXT")
+	private String text;
 
 	@Column(name = "status", nullable = false)
 	@Enumerated(EnumType.STRING)
@@ -33,24 +35,38 @@ public class DocumentEntity {
 
 	@Column(name = "last_error", columnDefinition = "TEXT")
 	private String lastError;
-
-	@Column(name = "updated_at", nullable = false)
-	private Instant updatedAt = Instant.now();
-
-
-	@Id
-	private String id;
-
-	@Column(name = "text", nullable = false, columnDefinition = "TEXT")
-	private String text;
-
+	
 	@Column(name = "created_at", nullable = false)
 	private Instant createdAt;
 
+	@Column(name = "updated_at", nullable = false)
+	private Instant updatedAt = Instant.now();
+	
+	
+	// --- reliability fields in your schema ---
+    @Column(name = "retry_count")
+    private Integer retryCount = 0;
+
+    @Column(name = "worker_id")
+    private String workerId;
+
+    @Column(name = "processing_started_at")
+    private Instant processingStartedAt;
+
+    @Column(name = "next_retry_at")
+    private Instant nextRetryAt;
+    
+    
+
+
+	
+
+	
+
 	// Store vector as String in JPA (we’ll query via JdbcTemplate for similarity)
-	@Transient
-	@Column(name = "embedding", columnDefinition = "TEXT")
-	private String embedding; // nullable until worker fills it
+	//@Transient
+	//@Column(name = "embedding", columnDefinition = "TEXT")
+	//private String embedding; // nullable until worker fills it
 
 
     protected DocumentEntity() {}
@@ -66,49 +82,39 @@ public class DocumentEntity {
     	  this.id = id;
     	  this.text = text;
     	  this.createdAt = createdAt;
-    	  this.embedding = embedding;
+    	  //this.embedding = embedding;
     	  this.status = DocumentStatus.READY; // if embedding exists
-    	  touch();
+    	  //touch();
     }
 
+    /* ===== getters ===== */
     public String getId() { return id; }
     public String getText() { return text; }
-   // public Instant getCreatedAt() { return createdAt; }
-    public String getEmbedding() { return embedding; }
-
-    public void setText(String text) { this.text = text; }
-    public void setEmbedding(String embedding) { this.embedding = embedding; }
-
     public DocumentStatus getStatus() { return status; }
-    public void setStatus(DocumentStatus status) { this.status = status; }
-
     public String getContentHash() { return contentHash; }
-    public void setContentHash(String contentHash) { this.contentHash = contentHash; }
-
     public String getLastError() { return lastError; }
+
+    /* ===== setters (only where needed) ===== */
+    public void setText(String text) { this.text = text; }
+    public void setStatus(DocumentStatus status) { this.status = status; }
+    public void setContentHash(String contentHash) { this.contentHash = contentHash; }
     public void setLastError(String lastError) { this.lastError = lastError; }
 
-    public Instant getUpdatedAt() { return updatedAt; }
-    public Instant getCreatedAt() { return createdAt; }
+    public void setRetryCount(Integer retryCount) { this.retryCount = retryCount; }
+    public void setWorkerId(String workerId) { this.workerId = workerId; }
+    public void setProcessingStartedAt(Instant t) { this.processingStartedAt = t; }
+    public void setNextRetryAt(Instant t) { this.nextRetryAt = t; }
+
 
 
     @PrePersist
     void onCreate() {
-      if (createdAt == null) {
-		createdAt = Instant.now();
-	  }
-      touch();
+        createdAt = Instant.now();
+        updatedAt = createdAt;
     }
 
     @PreUpdate
     void onUpdate() {
-      touch();
+        updatedAt = Instant.now();
     }
-
-
-
-    private void touch() {
-    	  this.updatedAt = Instant.now();
-    }
-
 }

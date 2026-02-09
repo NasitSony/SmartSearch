@@ -1,10 +1,12 @@
 package com.veriprotocol.springAI.controller.api;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -13,6 +15,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.veriprotocol.springAI.controller.api.dto.DocStatusResponse;
 import com.veriprotocol.springAI.controller.api.dto.DocumentRequest;
+import com.veriprotocol.springAI.controller.api.dto.DocumentStatusDto;
+import com.veriprotocol.springAI.core.DbHealth;
 import com.veriprotocol.springAI.core.DocumentService;
 import com.veriprotocol.springAI.core.RagService;
 import com.veriprotocol.springAI.persistance.ChunkSearchDao;
@@ -27,10 +31,13 @@ public class DocumentSearchController {
 
     private final DocumentService documentService;
     private final RagService ragService;
+    private final DbHealth dbHealth;   // ✅ injected instance
 
-    public DocumentSearchController(DocumentService documentService, RagService ragService) {
+
+    public DocumentSearchController(DocumentService documentService, RagService ragService, DbHealth dbHealth) {
         this.documentService = documentService;
         this.ragService = ragService;
+        this.dbHealth = dbHealth;
     }
 
     public record UpsertDocumentRequest(String id, @NotBlank String text) {}
@@ -43,37 +50,37 @@ public class DocumentSearchController {
         return Map.of("status", "ok");
     }
 
-   /* @PostMapping("/documents")
-   // public Map<String, Object> upsert(@RequestBody UpsertDocumentRequest req) {
-        String id = (req.id() == null || req.id().isBlank())
-                ? UUID.randomUUID().toString()
-                : req.id();
 
-        documentService.addDocument(id, req.text());  // ✅ this does chunking + inserts chunks
-
-        return Map.of("docId", id);
-   // }*/
-
-  /*  @PostMapping("/documents")
-    public ResponseEntity<DocStatusResponse> create(@RequestBody DocumentRequest req) {
-
-        String docId = documentService.createPending(req);
-
-        return ResponseEntity
-            .accepted()
-            .body(new DocStatusResponse(docId, "PENDING"));
-    }*/
 
     @PostMapping("/documents")
-    public ResponseEntity<DocStatusResponse> add(@RequestBody DocumentRequest req) {
+    public ResponseEntity<?> add(@RequestBody DocumentRequest req) {
+    	
+    	// ✅ FAST FAIL before touching JPA
+        if (!dbHealth.isDbUp()) {
+            return ResponseEntity.status(503)
+                .body(new ErrorResponse(
+                    "DB_UNAVAILABLE",
+                    "Database is unavailable. Please retry."
+                ));
+        }
+
         String docId = documentService.createPending(req.id(), req.text());
-        return ResponseEntity.status(202).body(new DocStatusResponse(docId, "PENDING"));
+
+        return ResponseEntity.status(202)
+            .body(new DocStatusResponse(docId, "PENDING"));
     }
 
     @GetMapping("/search")
     public List<ChunkSearchDao.ChunkHit> search(@RequestParam(name = "q") String q,
                                                 @RequestParam(name = "k", defaultValue = "3") int k) {
         return documentService.semanticSearchChunks(q, k);
+    }
+
+    @GetMapping("/documents/{id}")
+    public ResponseEntity<DocumentStatusDto> status(@PathVariable("id") String id) {
+        Optional<DocumentStatusDto> status = documentService.getStatus(id);
+        return status.map(ResponseEntity::ok)
+                     .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @GetMapping("/ask")
@@ -83,5 +90,21 @@ public class DocumentSearchController {
     ) {
         return ragService.ask(q, k);
     }
+
+    @GetMapping("/documents")
+    public ResponseEntity<List<DocumentStatusDto>> list(
+            @RequestParam(name = "status") String status,
+            @RequestParam(name = "limit", defaultValue = "20") int limit
+    ) {
+        // basic validation
+        String s = status.toUpperCase();
+        if (!List.of("PENDING", "PROCESSING", "READY", "FAILED").contains(s)) {
+            return ResponseEntity.badRequest().build();
+        }
+        return ResponseEntity.ok(documentService.listByStatus(s, limit));
+    }
+
+
+    record ErrorResponse(String code, String message) {}
 
 }
