@@ -202,6 +202,17 @@ public class DocumentWriteDao {
           AND (next_retry_at IS NULL OR next_retry_at <= now())
     """, docId);
 }
+    
+    public int claimPendingForRepublish(String docId, int cooldownSeconds) {
+        return jdbcTemplate.update("""
+            UPDATE documents
+            SET updated_at = now()
+            WHERE id = ?
+              AND status = 'PENDING'
+              AND updated_at <= now() - (? || ' seconds')::interval
+        """, docId, cooldownSeconds);
+    }
+
 
 
 }

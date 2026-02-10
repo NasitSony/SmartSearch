@@ -16,20 +16,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class IngestProducer {
 
-  //private final KafkaTemplate<String, IngestRequestEvent> kafkaTemplate;
-  //private final String topic;
-
-  /*public IngestProducer(
-      KafkaTemplate<String, IngestRequestEvent> kafkaTemplate,
-      @Value("${smartsearch.kafka.ingest-topic}") String topic
-  ) {
-    this.kafkaTemplate = kafkaTemplate;
-    this.topic = topic;
-  }*/
-
-  //public void send(String docId, String content, String contentHash) {
-   // kafkaTemplate.send(topic, docId, new IngestRequestEvent(docId, content, contentHash, Instant.now()));
-  //}
+  
   private final KafkaTemplate<String, Object> kafkaTemplate;
 
 
@@ -38,19 +25,19 @@ public class IngestProducer {
 
   //private final String topic = "${smartsearch.kafka.ingest-topic}"; // or from config
 
-  public void publish(String docId, String contentHash) {
+  public void publish(String docId) {
 
         IngestRequestEvent event =
-            new IngestRequestEvent(docId, contentHash, System.currentTimeMillis());
+            new IngestRequestEvent(docId, System.currentTimeMillis());
 
         kafkaTemplate.send(topic, docId, event);
   }
 
-  public void send(String docId, String contentHash) {
+  public void send(String docId) {
     kafkaTemplate.send(
         topic,
         docId,
-        new IngestRequestEvent(docId, contentHash, System.currentTimeMillis())
+        new IngestRequestEvent(docId, System.currentTimeMillis())
     );
 }
 
@@ -58,14 +45,9 @@ public void sendRetry(String docId) {
     kafkaTemplate.send(
         topic,
         docId,
-        new IngestRequestEvent(docId, null, System.currentTimeMillis())
+        new IngestRequestEvent(docId, System.currentTimeMillis())
     );
 }
-  //public void sendRetry(String docId) {
-	    // simplest: send only docId; consumer loads text/hash from DB
-	   // kafkaTemplate.send(topic, docId, new IngestRequestEvent(docId, null, null, Instant.now()));
-	//}
-
 
 
 }

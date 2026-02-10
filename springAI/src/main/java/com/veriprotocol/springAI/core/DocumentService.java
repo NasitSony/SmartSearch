@@ -117,20 +117,20 @@ public class DocumentService{
             docRepo.save(doc);
         } catch (Exception e) {
             log.error("DB save failed docId={}", id, e);
-            markFailedDb(id, safeMsg(e));
+           // markFailedDb(id, safeMsg(e));
             //statusUpdater.markFailed(id, safeMsg(e));
             throw e;
         }
         
         
         final String docId = doc.getId();
-        final String contentHash = hash;
+        //final String contentHash = hash;
 
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 try {
-                    ingestProducer.send(docId, contentHash);
+                    ingestProducer.send(docId);
                 } catch (Exception ex) {
                     log.error("Kafka publish failed docId={}", docId, ex);
                    markPublishFailed(docId, safeMsg(ex));

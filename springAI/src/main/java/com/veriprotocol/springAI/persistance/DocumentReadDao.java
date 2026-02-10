@@ -116,6 +116,38 @@ public class DocumentReadDao {
         return n == null ? 0 : n;
     }
 
+    
+    public List<String> findPendingDocIds(int limit) {
+        return jdbcTemplate.queryForList("""
+            SELECT id
+            FROM documents
+            WHERE status = 'PENDING'
+            ORDER BY created_at ASC
+            LIMIT ?
+            """, String.class, limit);
+    }
+
+    
+    public int touchPending(String id) {
+        return jdbcTemplate.update("""
+            UPDATE documents
+            SET updated_at = now()
+            WHERE id = ? AND status = 'PENDING'
+            """, id);
+    }
+
+    
+    public List<String> findOldPendingDocIds(int limit, int minAgeSeconds) {
+        return jdbcTemplate.queryForList("""
+            SELECT id
+            FROM documents
+            WHERE status = 'PENDING'
+              AND updated_at <= now() - (? || ' seconds')::interval
+            ORDER BY updated_at ASC
+            LIMIT ?
+        """, String.class, minAgeSeconds, limit);
+    }
+
 
 
 

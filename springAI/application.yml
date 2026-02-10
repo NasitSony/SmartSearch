@@ -41,6 +41,8 @@ spring:
       max-poll-interval: 1800000
       max-poll-records: 1
       enable-auto-commit: false
+      group-id: smartsearch-workers
+
       properties:
         spring.deserializer.key.delegate.class: org.apache.kafka.common.serialization.StringDeserializer
         spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
@@ -97,3 +99,6 @@ management:
 logging:
   pattern:
     console: "%d{HH:mm:ss.SSS} %-5level [%thread] %logger{36} docId=%X{docId} workerId=%X{workerId} - %msg%n"
+  level:
+    org.springframework.kafka: INFO
+    org.apache.kafka.clients.consumer: INFO

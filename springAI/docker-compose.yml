@@ -25,7 +25,8 @@ services:
       - "2181:2181"
     mem_limit: 384m
     cpus: 0.5
-
+  smartsearch-worker:
+   restart: always	
   kafka:
     image: confluentinc/cp-kafka:7.6.0
     container_name: smartsearch-kafka

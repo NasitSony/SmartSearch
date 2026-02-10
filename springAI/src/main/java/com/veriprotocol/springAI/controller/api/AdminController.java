@@ -1,10 +1,12 @@
 package com.veriprotocol.springAI.controller.api;
 
+import java.util.List;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.veriprotocol.springAI.controller.api.dto.DocumentStatusDto;
@@ -43,4 +45,24 @@ public class AdminController {
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
+    
+    @PostMapping("/republish-pending")
+    public ResponseEntity<?> republishPending(@RequestParam(defaultValue = "50") int limit) {
+
+        //List<String> ids = documentReadDao.findPendingDocIds(limit);
+
+        int republished = 0;
+        List<String> ids = documentReadDao.findOldPendingDocIds(limit, 3600);
+        for (String id : ids) {
+            // claim is optional now, but still good for concurrency safety
+            if (documentWriteDao.claimPendingForRepublish(id, 3600) == 1) {
+                ingestProducer.sendRetry(id);
+            }
+        }
+
+
+        return ResponseEntity.ok(new RepublishResponse(republished, ids));
+    }
+
+    record RepublishResponse(int republished, List<String> docIds) {}
 }

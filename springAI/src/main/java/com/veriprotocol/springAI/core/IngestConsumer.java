@@ -7,13 +7,18 @@ import org.springframework.kafka.support.Acknowledgment;
 
 import com.veriprotocol.springAI.persistance.DocumentReadDao;
 
+import jakarta.annotation.PostConstruct;
+
 //import com.veriprotocol.springAI.core.DocumentService;
 //import com.veriprotocol.springAI.core.IngestRequestEvent;
 //import com.veriprotocol.springAI.core.WorkerIdentity;
 //import com.veriprotocol.springAI.core.IngestMetrics;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 
+
+@Lazy(false)
 @Component
 @Slf4j
 public class IngestConsumer {
@@ -37,10 +42,10 @@ public class IngestConsumer {
 
     @KafkaListener(
             topics = "${smartsearch.kafka.ingest-topic}",
-            groupId = "smartsearch-workers",
+            //groupId = "smartsearch-workers",
             containerFactory = "smartsearchKafkaListenerContainerFactory"
     )
-    public void consume(IngestRequestEvent event, Acknowledgment ack) {
+    public void consume(IngestRequestEvent event)  {
 
         String docId = event.documentId();
         MDC.put("docId", docId);
@@ -73,10 +78,14 @@ public class IngestConsumer {
 
             // 4) Do the real work (chunk + embed + write chunks)
             documentService.addDocument(docId, text);
+           
 
             // 5) Mark READY
             documentService.markReadyDb(docId);
-            ack.acknowledge(); // ✅ commit offset ONLY after DB success
+            log.info("WROTE_CHUNKS_TO_DB_SLEEPING_BEFORE_COMMIT docId={}", docId);
+            //CHAOS TEST: kill-before-commit (validated no duplicates)
+           // Runtime.getRuntime().halt(137); // hard kill, no shutdown hooks
+           // ack.acknowledge(); // ✅ commit offset ONLY after DB success
 
             log.info("✅ Ingest complete docId={}", docId);
             ingestMetrics.onSucceeded();
@@ -93,5 +102,10 @@ public class IngestConsumer {
         } finally {
             MDC.clear();
         }
+    }
+    
+    @PostConstruct
+    public void init() {
+      log.info("🔥 IngestConsumer bean created");
     }
 }
