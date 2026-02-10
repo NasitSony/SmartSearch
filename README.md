@@ -208,6 +208,38 @@ SmartSearch is an incremental backend project that started with semantic search 
   - Retry semantics and idempotent writes
   - Dead-letter handling and error classification
  
+## v0.7 — Reliability, Idempotency & Failure Testing
+
+This release focuses on validating the system under real-world failure scenarios,
+beyond happy-path execution.
+
+### 1️⃣ End-to-End Acceptance Testing
+- Single and bulk (10+) document ingestion verified
+- Large document ingestion without timeouts
+- Correct retrieval behavior after ingestion
+
+**Result:** The full path from API → Kafka → Worker → Vector Search is stable and correct.
+
+---
+
+### 2️⃣ Failure & Crash Resilience (Chaos Testing)
+- Worker killed during processing → message safely reprocessed
+- Worker killed after DB write but before commit → no duplicate chunks
+- Database unavailable for ~10 seconds → Kafka retries with zero data loss
+
+**Result:** The system tolerates transient infrastructure failures without corruption.
+
+---
+
+### 3️⃣ Retry, Idempotency & Duplicate Handling
+- Simulated consumer exceptions trigger bounded retries
+- Retry exhaustion routes messages to Dead Letter Queue (DLQ)
+- Duplicate API requests and Kafka message replays are handled safely
+  with no duplicate database writes
+
+**Result:** Strong correctness guarantees under retries, crashes, and duplicate inputs.
+  - 
+ 
 ------------------------------------------------------------------------
 
 ## 🎯 Motivation
@@ -223,12 +255,17 @@ It is intended as a foundation for further work on intelligent document
 systems and protocol research tools.
 
 ------------------------------------------------------------------------
-
 ## Roadmap
 
 - [x] Semantic search with pgvector
 - [x] RAG question answering with citations
-- [x] Async ingestion foundation
-- [ ] Reliable FAILED-state persistence
-- [ ] Retry and idempotency guarantees
-- [ ] Dead-letter handling and observability improvements
+- [x] Asynchronous ingestion foundation (Kafka-based)
+- [x] API idempotency and duplicate request handling
+- [x] Retry semantics with bounded attempts
+- [x] Dead-letter queue (DLQ) handling for permanent failures
+- [x] Crash-safe processing and replay safety
+
+- [ ] Observability: metrics, structured logs, and tracing
+- [ ] Operational dashboards and alerting
+- [ ] Performance tuning under sustained load
+
