@@ -352,9 +352,6 @@ systems and protocol research tools.
 
 ------------------------------------------------------------------------
 
-✨ Key Design Decisions
-
-Add a new section if you want to educate readers:
 
 ## 💡 Key Design Decisions
 
