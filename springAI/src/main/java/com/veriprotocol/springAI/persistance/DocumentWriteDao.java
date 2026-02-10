@@ -1,6 +1,5 @@
 package com.veriprotocol.springAI.persistance;
 
-
 import java.sql.Timestamp;
 import java.time.Instant;
 
@@ -18,12 +17,21 @@ public class DocumentWriteDao {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    public void insert(String id, String text, Instant createdAt, String embeddingLiteral) {
-        jdbcTemplate.update("""
-            insert into documents (id, text, created_at, embedding)
-            values (?, ?, ?, ?::vector)
-        """, id, text, Timestamp.from(createdAt), embeddingLiteral);
+    private static String truncate(String s, int max) {
+        if (s == null) {
+			return null;
+		}
+        return s.length() <= max ? s : s.substring(0, max);
     }
+
+
+    public void insertPending(String id, String text, Instant createdAt, String contentHash) {
+        jdbcTemplate.update("""
+            INSERT INTO documents (id, text, created_at, updated_at, status, content_hash)
+            VALUES (?, ?, ?, now(), 'PENDING', ?)
+        """, id, text, Timestamp.from(createdAt), contentHash);
+    }
+
 
     public void upsert(String id, String text, Instant createdAt, String embeddingLiteral) {
         jdbcTemplate.update("""
@@ -43,8 +51,8 @@ public class DocumentWriteDao {
             WHERE id = ?
         """, status.name(), docId);
     }
-    
-    public int updateProcessigStatus(String docId, DocumentStatus status) {
+
+    public int updateProcessingStatus(String docId, DocumentStatus status) {
         return jdbcTemplate.update("""
             UPDATE documents
             SET status = ?
@@ -61,5 +69,150 @@ public class DocumentWriteDao {
                 WHERE id = ?
             """, status.name(), msg, docId);
      }
+
+
+   /* public boolean claimProcessingLease(String docId, String workerId) {
+      var rows = jdbcTemplate.queryForList("""
+        INSERT INTO documents (id, status, worker_id, processing_started_at, retry_count, updated_at)
+        VALUES (?, 'PROCESSING', ?, now(), 0, now())
+        ON CONFLICT (id) DO UPDATE
+        SET status = 'PROCESSING',
+            worker_id = EXCLUDED.worker_id,
+            processing_started_at = now(),
+            updated_at = now()
+        WHERE documents.status IN ('PENDING', 'FAILED')
+        RETURNING id
+    """, docId, workerId);
+
+    return !rows.isEmpty();
+    }*/
+
+
+    public boolean claimProcessingLease(String docId, String workerId) {
+    var rows = jdbcTemplate.queryForList("""
+        UPDATE documents
+        SET status = 'PROCESSING',
+            worker_id = ?,
+            processing_started_at = now(),
+            updated_at = now()
+        WHERE id = ?
+          AND status IN ('PENDING', 'FAILED')
+        RETURNING id
+        """,
+        String.class,
+        workerId,   // first ?
+        docId       // second ?
+    );
+
+    return !rows.isEmpty();
+}
+
+
+    public void markReady(String docId) {
+        jdbcTemplate.update("""
+           UPDATE documents
+           SET status = 'READY',
+              last_error = NULL,
+              next_retry_at = NULL,
+              processing_started_at = NULL,
+              worker_id = NULL,
+              updated_at = now()
+           WHERE id = ?
+          """, docId);
+   }
+
+
+
+
+
+    public void markFailed(String docId, String errorMessage) {
+        String msg = truncate(errorMessage, 800); // adjust if your column allows more
+
+        // read current retry_count (or assume 0 if missing)
+        jdbcTemplate.update("""
+              UPDATE documents
+              SET status = 'FAILED',
+                  last_error = ?,
+                  next_retry_at = now() + make_interval(secs => LEAST(600, 10 * (2 ^ LEAST(retry_count, 6)))::int),
+                  processing_started_at = NULL,
+                  worker_id = NULL,
+                  updated_at = now()
+                  WHERE id = ?
+                """, msg, docId);
+    }
+
+    public int markStuckProcessingAsFailed(int minutes) {
+        return jdbcTemplate.update("""
+            UPDATE documents
+            SET status = 'FAILED',
+                last_error = 'stuck PROCESSING (lease expired)',
+                retry_count = retry_count + 1,
+                next_retry_at = now() + interval '30 seconds',
+                processing_started_at = NULL,
+                worker_id = NULL,
+                updated_at = now()
+            WHERE status = 'PROCESSING'
+              AND processing_started_at < now() - (? || ' minutes')::interval
+        """, minutes);
+    }
+
+
+
+    public int resetFailedToPending(String docId) {
+        return jdbcTemplate.update("""
+            UPDATE documents
+            SET status = 'PENDING',
+              retry_count = retry_count + 1,
+              last_error = NULL,
+              next_retry_at = NULL,
+              processing_started_at = NULL,
+              worker_id = NULL,
+              updated_at = now()
+            WHERE id = ?
+            AND status = 'FAILED'
+            AND (next_retry_at IS NULL OR next_retry_at <= now())
+           """, docId);
+    }
+
+
+    public int forceToPending(String docId) {
+        return jdbcTemplate.update("""
+            UPDATE documents
+            SET status = 'PENDING',
+                last_error = NULL,
+                processing_started_at = NULL,
+                worker_id = NULL,
+                next_retry_at = NULL,
+                updated_at = now()
+            WHERE id = ?
+              AND status IN ('FAILED')
+        """, docId);
+    }
+
+
+    public void incrementRetryAndRequeue(String docId) {
+    jdbcTemplate.update("""
+        UPDATE documents
+        SET retry_count = retry_count + 1,
+            status = 'PENDING',
+            next_retry_at = NULL,
+            updated_at = now()
+        WHERE id = ?
+          AND status = 'FAILED'
+          AND (next_retry_at IS NULL OR next_retry_at <= now())
+    """, docId);
+}
+    
+    public int claimPendingForRepublish(String docId, int cooldownSeconds) {
+        return jdbcTemplate.update("""
+            UPDATE documents
+            SET updated_at = now()
+            WHERE id = ?
+              AND status = 'PENDING'
+              AND updated_at <= now() - (? || ' seconds')::interval
+        """, docId, cooldownSeconds);
+    }
+
+
 
 }

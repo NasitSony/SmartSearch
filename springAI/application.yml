@@ -1,31 +1,61 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5433/smartsearch
+    host: localhost
+    port: 5433
+    url: jdbc:postgresql://localhost:5433/smartsearch?connectTimeout=2&socketTimeout=2&loginTimeout=2
     username: smartsearch
     password: password
+  main:
+    lazy-initialization: true
+    hikari:
+      connection-timeout: 2000
+      initialization-fail-timeout: -1
+      initializationFailTimeout: -1
+      validation-timeout: 2000
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB  
   jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
-      ddl-auto: validate
+      ddl-auto: none
     properties:
       hibernate:
         jdbc:
           timezone: UTC
+        temp:
+          use_jdbc_metadata_defaults: false  # <--- prevents metadata DB access on boot  
   kafka:
+    listener:
+      ack-mode: manual
     bootstrap-servers: localhost:9092
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       properties:
         spring.json.add.type.headers: false 
+        max.request.size: 52428800
     consumer:
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      key-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
       auto-offset-reset: earliest
+      max-poll-interval: 1800000
+      max-poll-records: 1
+      enable-auto-commit: false
+      group-id: smartsearch-workers
+
       properties:
-        spring.json.trusted.packages: "*"
-        spring.json.value.default.type: com.veriprotocol.springAI.core.IngestRequestEvent  
+        spring.deserializer.key.delegate.class: org.apache.kafka.common.serialization.StringDeserializer
+        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
+        spring.json.trusted.packages: "com.veriprotocol.springAI.core"
+        spring.json.value.default.type: "com.veriprotocol.springAI.core.IngestRequestEvent"
+        spring.json.use.type.headers: false
+        fetch.max.bytes: 52428800
+        max.partition.fetch.bytes: 52428800
+  
   flyway:
-    enabled: true  
+    enabled: false  
     baseline-on-migrate: true
     baseline-version: 1
     locations: classpath:db/migration
@@ -46,11 +76,36 @@ smartsearch:
   embedding:
     dims: 1536
   kafka:
-    ingest-topic: smartsearch.ingest.v5
-    ingest-dlq-topic: smartsearch.ingest.v5.dlq
+    ingest-topic: smartsearch.ingest.v6
+    ingest-dlq-topic: smartsearch.ingest.v6.dlq
     
      
 
   
 server:
   address: 0.0.0.0
+  server:
+  max-http-request-header-size: 16KB
+  tomcat:
+    max-swallow-size: -1   # don’t drop large bodies
+  
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+    endpoint:
+      health:
+        show-details: always
+
+logging:
+  pattern:
+    console: "%d{HH:mm:ss.SSS} %-5level [%thread] %logger{36} docId=%X{docId} workerId=%X{workerId} - %msg%n"
+  level:
+    org.springframework.kafka: INFO
+    org.apache.kafka.clients.consumer: INFO
+    root: INFO
+    com.veriprotocol: DEBUG
+    org.springframework.web: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE

@@ -1,15 +1,21 @@
 package com.veriprotocol.springAI.core;
+
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-import com.veriprotocol.springAI.config.KafkaErrorHandlingConfig;
+
+import com.veriprotocol.springAI.controller.api.dto.DocumentStatusDto;
 import com.veriprotocol.springAI.persistance.ChunkSearchDao;
 import com.veriprotocol.springAI.persistance.DocumentChunkWriteDao;
 import com.veriprotocol.springAI.persistance.DocumentEntity;
+import com.veriprotocol.springAI.persistance.DocumentReadDao;
 import com.veriprotocol.springAI.persistance.DocumentRepository;
 import com.veriprotocol.springAI.persistance.DocumentStatus;
 import com.veriprotocol.springAI.persistance.DocumentWriteDao;
@@ -19,7 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Slf4j
-public class DocumentService<documentWriteDao> {
+public class DocumentService{
 
 	private final EmbeddingModel embeddingModel;
     private final DocumentRepository docRepo; // optional
@@ -27,6 +33,9 @@ public class DocumentService<documentWriteDao> {
     private final ChunkSearchDao chunkSearchDao;
     private final IngestProducer ingestProducer;
     private final DocumentWriteDao documentWriteDao;
+    private final DocumentReadDao documentReadDao;
+
+
 
 
     public DocumentService(EmbeddingModel embeddingModel,
@@ -34,21 +43,30 @@ public class DocumentService<documentWriteDao> {
             DocumentChunkWriteDao chunkWriteDao,
             ChunkSearchDao chunkSearchDao,
             IngestProducer ingestProducer,
-            DocumentWriteDao documentWriteDao) {
+            DocumentWriteDao documentWriteDao, DocumentReadDao documentReadDao) {
             this.embeddingModel = embeddingModel;
             this.docRepo = docRepo;
             this.chunkWriteDao = chunkWriteDao;
             this.chunkSearchDao = chunkSearchDao;
             this.ingestProducer = ingestProducer;
             this.documentWriteDao = documentWriteDao;
+            this.documentReadDao = documentReadDao;
     }
 
-    @Transactional
+    //@Transactional
     public void addDocument(String id, String text) {
         // Optional: store whole doc row (useful metadata)
-        String docVec = PgVector.toLiteral(embeddingModel.embed(text));
-        docRepo.save(new DocumentEntity(id, text, Instant.now(), docVec));
+       // String docVec = PgVector.toLiteral(embeddingModel.embed(text));
+        //docRepo.save(new DocumentEntity(id, text, Instant.now(), docVec));
 
+    	if (text == null || text.isBlank()) {
+    	    throw new IllegalArgumentException("document text is null/blank");
+    	}
+
+
+    	if (text.contains("FAILME")) {
+    	    throw new RuntimeException("forced failure");
+    	}
         // Chunk + embed + store
         chunkWriteDao.deleteByDocId(id);
 
@@ -64,53 +82,111 @@ public class DocumentService<documentWriteDao> {
 
 
     @Transactional
-    public String createPending(String id, String text) {
-
-        String hash = org.apache.commons.codec.digest.DigestUtils.sha256Hex(text);
-
-        DocumentEntity existing = docRepo.findById(id).orElse(null);
-        if (existing != null
-                && hash.equals(existing.getContentHash())
-                && existing.getStatus() == DocumentStatus.READY) {
-            return existing.getId();
+    public String createPending(String requestId, String text) {
+    	
+    	if (requestId == null || requestId.isBlank()) {
+            throw new IllegalArgumentException("requestId (Idempotency-Key) must not be null/blank");
+        }
+        if (text == null || text.isBlank()) {
+            throw new IllegalArgumentException("text must not be null/blank");
         }
 
+    
+        String hash = org.apache.commons.codec.digest.DigestUtils.sha256Hex(text);
+
+        DocumentEntity existing = docRepo.findByRequestId(requestId).orElse(null);
+        
+        if (existing != null) {
+            return existing.getId();   // ALWAYS return doc id
+        }
+
+        
+        String  id = java.util.UUID.randomUUID().toString();
+        
         DocumentEntity doc = (existing != null) ? existing : new DocumentEntity(id, text);
+        doc.setRequestId(requestId);
         doc.setText(text);
         doc.setContentHash(hash);
         doc.setStatus(DocumentStatus.PENDING);
         doc.setLastError(null);
-        doc.setEmbedding(null);
 
-        docRepo.save(doc);
+        // reset reliability fields (optional, but matches your schema)
+        doc.setRetryCount(0);
+        doc.setWorkerId(null);
+        doc.setProcessingStartedAt(null);
+        doc.setNextRetryAt(null);
 
-        ingestProducer.send(doc.getId(), text, hash);
-        return doc.getId();
+        try {
+            docRepo.save(doc);
+        } catch (org.springframework.dao.DataIntegrityViolationException dup) {
+            // Another thread inserted same requestId between our check and save.
+            // Fetch and return existing. No Kafka publish.
+            existing = docRepo.findByRequestId(requestId)
+                    .orElseThrow(() -> dup);
+            return existing.getId();
+        } catch (Exception e) {
+            log.error("DB save failed requestId={} docId={}", requestId, id, e);
+            throw e;
+        }
+        
+        
+        final String docId = doc.getId();
+        //final String contentHash = hash;
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    ingestProducer.send(docId);
+                } catch (Exception ex) {
+                    log.error("Kafka publish failed docId={}", docId, ex);
+                   markPublishFailed(docId, safeMsg(ex));
+                }
+            }
+        });
+
+        return docId;
     }
-
+    private void markPublishFailed(String docId, String err) {
+        docRepo.updateLastError(docId, "PUBLISH_FAILED: " + err);
+    }
 
     public List<ChunkSearchDao.ChunkHit> semanticSearchChunks(String query, int k) {
         String qVec = PgVector.toLiteral(embeddingModel.embed(query));
         return chunkSearchDao.searchTopK(qVec, k);
     }
 
-    public void markProcessing(String docId) {
-        documentWriteDao.updateProcessigStatus(docId, DocumentStatus.PROCESSING);
+    public boolean claimProcessingLease(String docId, String workerId) {
+       return documentWriteDao.claimProcessingLease(docId, workerId);
     }
 
-    public void markReady(String docId) {
-        documentWriteDao.updateStatus(docId, DocumentStatus.READY);
+    public void markReadyDb(String docId) {
+        documentWriteDao.markReady(docId);
     }
 
-    public void markError(String docId, String msg) {
-        documentWriteDao.updateStatus(docId, DocumentStatus.ERROR);
+   // public void markError(String docId, String msg) {
+      //  documentWriteDao.updateStatus(docId, DocumentStatus.ERROR);
+    //}
+
+    public void markFailedDb(String docId, String msg) {
+    	  documentWriteDao.markFailed(docId, msg);
+    	  log.error("✅ markFailed rowsUpdated={} docId={}", docId, msg);
     }
 
-    public void markFailed(String docId, String msg) {
-    	  int n = documentWriteDao.updateStatusAndError(docId,DocumentStatus.FAILED, msg);
-    	  log.error("✅ markFailed rowsUpdated={} docId={}", n, docId);
+    public Optional<DocumentStatusDto> getStatus(String id) {
+        return documentReadDao.findStatusById(id);
     }
 
+    public List<DocumentStatusDto> listByStatus(String status, int limit) {
+        return documentReadDao.listByStatus(status, limit);
+    }
 
-
+    private static String safeMsg(Throwable t) {
+        if (t == null) return "unknown";
+        String msg = t.getMessage();
+        if (msg == null || msg.isBlank()) return t.getClass().getSimpleName();
+        // Avoid huge DB error strings
+        msg = msg.replaceAll("\\s+", " ").trim();
+        return (msg.length() > 500) ? msg.substring(0, 500) : msg;
+    }
 }
