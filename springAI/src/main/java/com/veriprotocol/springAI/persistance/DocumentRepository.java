@@ -1,5 +1,7 @@
 package com.veriprotocol.springAI.persistance;
 
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -11,6 +13,9 @@ import jakarta.transaction.Transactional;
 
 
 public interface DocumentRepository extends JpaRepository<DocumentEntity, String> {
+	
+	// ✅ ADD THIS
+    Optional<DocumentEntity> findByRequestId(String requestId);
 	
 	@Modifying
     @Transactional

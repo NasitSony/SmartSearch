@@ -64,7 +64,7 @@ public class DocumentSearchController {
                 ));
         }
 
-        String docId = documentService.createPending(req.id(), req.text());
+        String docId = documentService.createPending(req.requestId(), req.text());
 
         return ResponseEntity.status(202)
             .body(new DocStatusResponse(docId, "PENDING"));

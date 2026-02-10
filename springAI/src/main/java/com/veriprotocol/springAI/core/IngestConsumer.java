@@ -52,6 +52,8 @@ public class IngestConsumer {
 
         try {
             log.info("📥 Received ingest event for docId={}", docId);
+            
+            
 
             // 1) Optional idempotency check via status
             var statusOpt = documentReadDao.findStatusById(docId);
@@ -63,6 +65,9 @@ public class IngestConsumer {
                 log.info("✅ Already READY, skipping {}", docId);
                 return;
             }
+            
+            
+
 
             // 2) Claim the lease (prevents double-processing on rebalance/retry)
             String workerId = workerIdentity.getWorkerId();
@@ -72,10 +77,16 @@ public class IngestConsumer {
                 return;
             }
 
-            // 3) Load payload (text) from DB (Kafka carries only docId)
+         // 3) Load payload (text) from DB (Kafka carries only docId)
             DocumentReadDao.DocPayload payload = documentReadDao.loadDocPayload(docId);
             String text = payload.text();
-
+            
+            //Throw exception in consumer
+           /* if (text.contains("FAILME")) {
+                log.error("TEST_SIMULATED_EXCEPTION docId={}", docId);
+                throw new RuntimeException("Simulated consumer failure for retry test");
+            }*/
+           
             // 4) Do the real work (chunk + embed + write chunks)
             documentService.addDocument(docId, text);
            

@@ -9,13 +9,26 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import jakarta.servlet.http.HttpServletRequest;
+
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+	
+	private static final org.slf4j.Logger log =
+            org.slf4j.LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
 
     @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
     @ExceptionHandler(Exception.class)
-    public ErrorResponse handle(Exception e) {
-        Throwable root = NestedExceptionUtils.getMostSpecificCause(e);
+    public ErrorResponse handle(Exception e, HttpServletRequest request) {
+        Throwable root = rootCause(e);
+        
+     // ✅ Always log the exception (stack trace)
+        log.error("Unhandled exception path={} method={} root={}",
+                request.getRequestURI(),
+                request.getMethod(),
+                root == null ? "null" : root.getClass().getName(),
+                e);
 
         if (isDbDown(root)) {
             return new ErrorResponse(
@@ -44,5 +57,10 @@ public class GlobalExceptionHandler {
         );
     }
 
+    private static Throwable rootCause(Throwable t) {
+        Throwable cur = t;
+        while (cur.getCause() != null && cur.getCause() != cur) cur = cur.getCause();
+        return cur;
+    }
     public record ErrorResponse(String code, String message) {}
 }

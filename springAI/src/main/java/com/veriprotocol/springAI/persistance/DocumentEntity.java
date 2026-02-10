@@ -28,6 +28,9 @@ public class DocumentEntity {
 	@Column(name = "status", nullable = false)
 	@Enumerated(EnumType.STRING)
 	private DocumentStatus status = DocumentStatus.PENDING;
+	
+	@Column(name = "request_id", unique = true)
+	private String requestId;
 
 
 	@Column(name = "content_hash", length = 64)
@@ -89,12 +92,14 @@ public class DocumentEntity {
 
     /* ===== getters ===== */
     public String getId() { return id; }
+    public String getRequestId() { return requestId; }
     public String getText() { return text; }
     public DocumentStatus getStatus() { return status; }
     public String getContentHash() { return contentHash; }
     public String getLastError() { return lastError; }
 
     /* ===== setters (only where needed) ===== */
+    public void setRequestId(String requestId) { this.requestId = requestId;}
     public void setText(String text) { this.text = text; }
     public void setStatus(DocumentStatus status) { this.status = status; }
     public void setContentHash(String contentHash) { this.contentHash = contentHash; }

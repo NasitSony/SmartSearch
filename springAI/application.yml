@@ -27,6 +27,8 @@ spring:
         temp:
           use_jdbc_metadata_defaults: false  # <--- prevents metadata DB access on boot  
   kafka:
+    listener:
+      ack-mode: manual
     bootstrap-servers: localhost:9092
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
@@ -102,3 +104,8 @@ logging:
   level:
     org.springframework.kafka: INFO
     org.apache.kafka.clients.consumer: INFO
+    root: INFO
+    com.veriprotocol: DEBUG
+    org.springframework.web: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE

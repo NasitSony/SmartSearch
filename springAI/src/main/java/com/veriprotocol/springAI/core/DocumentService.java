@@ -82,26 +82,29 @@ public class DocumentService{
 
 
     @Transactional
-    public String createPending(String id, String text) {
-
-    	if (id == null || id.isBlank()) {
-            id = java.util.UUID.randomUUID().toString();
-        }
+    public String createPending(String requestId, String text) {
     	
-    	if (text == null || text.isBlank()) {
-    	    throw new IllegalArgumentException("text must not be null/blank");
-    	}
+    	if (requestId == null || requestId.isBlank()) {
+            throw new IllegalArgumentException("requestId (Idempotency-Key) must not be null/blank");
+        }
+        if (text == null || text.isBlank()) {
+            throw new IllegalArgumentException("text must not be null/blank");
+        }
 
+    
         String hash = org.apache.commons.codec.digest.DigestUtils.sha256Hex(text);
 
-        DocumentEntity existing = docRepo.findById(id).orElse(null);
-        if (existing != null
-                && hash.equals(existing.getContentHash())
-                && existing.getStatus() == DocumentStatus.READY) {
-            return existing.getId();
+        DocumentEntity existing = docRepo.findByRequestId(requestId).orElse(null);
+        
+        if (existing != null) {
+            return existing.getId();   // ALWAYS return doc id
         }
 
+        
+        String  id = java.util.UUID.randomUUID().toString();
+        
         DocumentEntity doc = (existing != null) ? existing : new DocumentEntity(id, text);
+        doc.setRequestId(requestId);
         doc.setText(text);
         doc.setContentHash(hash);
         doc.setStatus(DocumentStatus.PENDING);
@@ -115,10 +118,14 @@ public class DocumentService{
 
         try {
             docRepo.save(doc);
+        } catch (org.springframework.dao.DataIntegrityViolationException dup) {
+            // Another thread inserted same requestId between our check and save.
+            // Fetch and return existing. No Kafka publish.
+            existing = docRepo.findByRequestId(requestId)
+                    .orElseThrow(() -> dup);
+            return existing.getId();
         } catch (Exception e) {
-            log.error("DB save failed docId={}", id, e);
-           // markFailedDb(id, safeMsg(e));
-            //statusUpdater.markFailed(id, safeMsg(e));
+            log.error("DB save failed requestId={} docId={}", requestId, id, e);
             throw e;
         }
         
@@ -139,11 +146,6 @@ public class DocumentService{
         });
 
         return docId;
-
-       // ingestProducer.send(doc.getId(), hash);
-
-
-       // return doc.getId();
     }
     private void markPublishFailed(String docId, String err) {
         docRepo.updateLastError(docId, "PUBLISH_FAILED: " + err);
