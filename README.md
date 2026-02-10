@@ -125,32 +125,70 @@ curl "http://localhost:8080/api/ask?q=What%20is%20MVBA%3F&k=5"
 
 ------------------------------------------------------------------------
 
-## 🛠️ Setup
+## 🚀 Setup (Local Development)
 
-### 1️⃣ PostgreSQL (no Docker required)
+This project consists of an API service, a Kafka-based ingestion pipeline,
+and a PostgreSQL database with vector support.
 
-``` sql
+### 1️⃣ Prerequisites
+- Java 17+
+- PostgreSQL with `vector` extension
+- Kafka (recommended via Docker Compose)
+
+### 2️⃣ PostgreSQL
+```sql
 CREATE DATABASE smartsearch;
 \c smartsearch
-CREATE EXTENSION vector;
+CREATE EXTENSION IF NOT EXISTS vector;
+
+
+🔧 Configuration (Kafka + Spring AI)
+1️⃣ Kafka (Docker Compose)
+
+Kafka is required for asynchronous ingestion, retries, and DLQ handling.
+
+Create a docker-compose.yml (or use the existing one in the repo):
+
+version: "3.8"
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+Start Kafka locally:
+
+docker compose up kafka zookeeper
+
+
+Kafka topics are auto-created on first use by the application.
+
 ```
+2️⃣ Spring AI Configuration
 
-### 2️⃣ Tables
+The project uses Spring AI for embeddings and LLM-powered retrieval.
 
-documents: - id TEXT PRIMARY KEY - text TEXT - created_at TIMESTAMP -
-embedding TEXT
+Set your provider API key via environment variables or application.yml.
 
-document_chunks: - doc_id TEXT - chunk_id INT - chunk_text TEXT -
-created_at TIMESTAMP - embedding VECTOR(1536) - PRIMARY KEY (doc_id,
-chunk_id)
-
-### 3️⃣ Configure Spring AI
-
-Set your provider API key in environment variables or `application.yml`.
-
-Example for OpenAI:
-
-``` yaml
+Example: OpenAI
 spring:
   ai:
     openai:
@@ -158,7 +196,65 @@ spring:
       chat:
         options:
           model: gpt-4o-mini
-```
+Export your API key:
+
+export OPENAI_API_KEY=your_api_key_here
+
+
+⚠️ Never commit API keys to source control.
+
+3️⃣ Start the Application
+
+With PostgreSQL, Kafka, and environment variables configured:
+
+./mvnw spring-boot:run
+
+
+Once running:
+
+API is available at http://localhost:8080
+
+Documents are ingested asynchronously via Kafka
+
+Workers handle retries, idempotency, and DLQ routing
+
+
+---
+
+### 📌 2) Reliability & Correctness Guarantees
+
+Add this after Features or Architecture:
+
+```md
+## 🛡️ Reliability & Correctness Guarantees (v0.7)
+
+This version focuses on validating the system under real-world conditions,
+including failures, crashes, and repeated requests.
+
+### 1️⃣ End-to-End Acceptance Testing
+- Single and bulk (10+) document ingestion
+- Large document handling without timeouts
+- Post-ingestion retrieval accuracy
+
+**Result:** The full path from API → Kafka → Worker → Vector Search works reliably.
+
+### 2️⃣ Failure & Crash Resilience (Chaos Tests)
+- Worker killed mid-processing → reprocessed safely
+- Worker killed after DB write, before commit → no duplicate chunks
+- DB unavailable briefly → Kafka retries with no data loss
+
+**Result:** The ingestion pipeline tolerates transient infrastructure failures.
+
+### 3️⃣ Retry, Idempotency & Duplicate Handling
+- Consumer exceptions trigger bounded retries
+- Exceeded retries are sent to Dead Letter Queue (DLQ)
+- Duplicate API requests and Kafka message replays handled safely
+  with no duplicate database writes
+
+**Result:** Strong correctness guarantees under retries, failures, and duplicates.
+
+------------------------------------------------------------------------
+
 
 ------------------------------------------------------------------------
 
@@ -253,6 +349,25 @@ backends by:
 
 It is intended as a foundation for further work on intelligent document
 systems and protocol research tools.
+
+------------------------------------------------------------------------
+
+✨ Key Design Decisions
+
+Add a new section if you want to educate readers:
+
+## 💡 Key Design Decisions
+
+**API Idempotency**
+- Each request includes a `requestId`
+- Database enforces uniqueness
+- Duplicate requests return the same document
+
+**Kafka & Exactly-Once Semantics**
+- Kafka offsets are committed only after the DB transaction
+- Retries are bounded via DefaultErrorHandler
+- Permanent failures land in a DLQ
+
 
 ------------------------------------------------------------------------
 ## Roadmap
