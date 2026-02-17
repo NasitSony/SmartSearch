@@ -63,6 +63,16 @@ This design shifts the system from a synchronous demo pipeline to an **event-dri
 
 ------------------------------------------------------------------------
 
+## 🧠 SmartSearch Architecture
+
+<p align="center">
+  <img src="docs/images/Architecture.png" width="800"/>
+</p>
+
+<p align="center">
+  <em>End-to-end architecture: API → Kafka → Async Workers → pgvector → Vector Search</em>
+</p>
+
 ## 🧱 Architecture
 
 Client \| \| POST /api/documents \| GET /api/search?q=...&k=... \| GET
