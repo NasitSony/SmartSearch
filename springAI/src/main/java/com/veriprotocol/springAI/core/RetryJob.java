@@ -23,7 +23,7 @@ public class RetryJob {
 
     // tune these later
     private static final int BATCH_SIZE = 20;
-    private static final int MAX_RETRIES = 5;
+    private static final int MAX_RETRIES = 3;
 
     @Scheduled(fixedDelay = 30_000, initialDelay = 20_000)
     public void republishFailedDocs() {

@@ -82,7 +82,7 @@ public class IngestConsumer {
             String text = payload.text();
             
             //Throw exception in consumer
-           /* if (text.contains("FAILME")) {
+           /* if (text.contains("FAIL")) {
                 log.error("TEST_SIMULATED_EXCEPTION docId={}", docId);
                 throw new RuntimeException("Simulated consumer failure for retry test");
             }*/
