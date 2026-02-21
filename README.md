@@ -95,6 +95,53 @@ The system was tested under failure conditions using controlled fault injection
 - Failed jobs are not reprocessed automatically
 - DLQ contains messages exceeding retry limits
 
+## Failure Proof (Reproducible)
+
+These scenarios were executed locally using Docker-based failure injection
+(container kill, service restart, DB interruption, and Kafka replay).
+
+### 1) Worker crash mid-processing
+**Action**
+- Submit a document
+- `docker kill smartsearch-worker`
+
+**Expected**
+- Job transitions to PROCESSING, then eventually READY after worker restarts
+- No duplicate chunks
+
+### 2) Crash after DB write (duplicate safety)
+**Action**
+- Force-stop worker immediately after chunk inserts begin (simulate crash window)
+
+**Expected**
+- On restart, message may reprocess
+- **No duplicate chunks** due to idempotent persistence
+
+### 3) Kafka interruption
+**Action**
+- `docker stop smartsearch-kafka`
+- Restart Kafka
+
+**Expected**
+- Worker recovers and continues processing without data loss
+
+### 4) Database interruption
+**Action**
+- `docker stop smartsearch-postgres`
+- Restart Postgres
+
+**Expected**
+- Worker retries and completes ingestion; job ends READY or FAILED with visible error
+
+### 5) Retry exhaustion → FAILED + DLQ
+**Action**
+- Simulate a poison message / forced exception in consumer
+
+**Expected**
+- After bounded retries, status becomes **FAILED**
+- Message is present in DLQ
+
+
 ## Future Validation (Planned)
 
 The following scenarios are identified for further strengthening system robustness:
