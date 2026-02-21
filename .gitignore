@@ -1,1 +1,17 @@
-/.metadata/
+# macOS
+.DS_Store
+__MACOSX/
+
+# IDEs
+.metadata/
+.idea/
+.vscode/
+*.iml
+
+# Java build
+**/target/
+*.log
+
+# local big test files (keep samples small + versioned)
+big*.txt
+large*.txt
