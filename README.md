@@ -55,12 +55,45 @@ without blocking API responsiveness.
 - Crash-safe processing with no data corruption
 - Deterministic job state transitions (PENDING → PROCESSING → READY / FAILED)
 
-## Failure Scenarios (Tested)
+## Failure Scenarios (Validated)
 
-- Worker killed mid-processing → message reprocessed safely
-- Worker killed after DB write → no duplicate chunks
-- Kafka replay → idempotent writes prevent duplication
-- DB temporarily unavailable → retries succeed without data loss
+The system was tested under failure conditions using controlled fault injection
+(process termination, Kafka interruption, DB unavailability, and message replay).
+
+### Worker & Crash Resilience
+- Worker killed mid-processing → message is reprocessed safely
+- Worker killed after DB write → no duplicate chunks created
+- Worker restart → resumes from correct Kafka offset
+- Kafka broker stopped → worker recovers after restart
+- Database unavailable → retries succeed without data loss
+
+### Retry & Idempotency
+- Consumer exceptions trigger bounded retries
+- Retry exhaustion → job marked as **FAILED** and sent to DLQ
+- Kafka message replay → no duplicate chunks (idempotent writes)
+- Duplicate API requests → same `requestId` handled safely
+
+### Ordering & Offset Correctness
+- Burst ingestion (20+ messages) → all messages processed
+- Worker restart mid-burst → no message loss
+- Kafka offset progression remains correct and monotonic
+
+### End-to-End Validation
+- Single document ingestion → SUCCESS
+- Bulk ingestion (10–50 docs) → all succeed
+- Large document ingestion → no timeout or partial state
+- Post-ingestion search → returns correct chunks
+
+### Database Consistency
+- No stuck PENDING jobs after recovery
+- No partial or half-written chunk state
+- Correct lifecycle transitions:
+  **PENDING → PROCESSING → READY / FAILED**
+
+### Failure State Handling
+- Permanent failures persist as **FAILED**
+- Failed jobs are not reprocessed automatically
+- DLQ contains messages exceeding retry limits
 
 ------------------------------------------------------------------------
 
