@@ -97,50 +97,60 @@ The system was tested under failure conditions using controlled fault injection
 
 ## Failure Proof (Reproducible)
 
-These scenarios were executed locally using Docker-based failure injection
-(container kill, service restart, DB interruption, and Kafka replay).
+These scenarios were validated locally using controlled failure injection
+(process termination, service restart, Kafka/DB interruption, and message replay).
 
-### 1) Worker crash mid-processing
+### 1) Service crash mid-processing
 **Action**
 - Submit a document
-- `docker kill smartsearch-worker`
+- Kill the Spring Boot process during ingestion
 
 **Expected**
-- Job transitions to PROCESSING, then eventually READY after worker restarts
-- No duplicate chunks
+- Job remains in PROCESSING and resumes after restart
+- Message is reprocessed safely
+- No duplicate chunks are created
 
-### 2) Crash after DB write (duplicate safety)
+---
+
+### 2) Crash during persistence (duplicate safety)
 **Action**
-- Force-stop worker immediately after chunk inserts begin (simulate crash window)
+- Terminate service while chunks are being inserted
 
 **Expected**
-- On restart, message may reprocess
-- **No duplicate chunks** due to idempotent persistence
+- On restart, ingestion may reprocess the message
+- Idempotent persistence prevents duplicate chunks
+
+---
 
 ### 3) Kafka interruption
 **Action**
-- `docker stop smartsearch-kafka`
+- Stop Kafka broker
 - Restart Kafka
 
 **Expected**
-- Worker recovers and continues processing without data loss
+- Consumer resumes processing after broker recovery
+- No message loss
+
+---
 
 ### 4) Database interruption
 **Action**
-- `docker stop smartsearch-postgres`
-- Restart Postgres
+- Stop PostgreSQL
+- Restart PostgreSQL
 
 **Expected**
-- Worker retries and completes ingestion; job ends READY or FAILED with visible error
+- Worker retries ingestion
+- Job completes as READY or FAILED with visible state
+
+---
 
 ### 5) Retry exhaustion → FAILED + DLQ
 **Action**
-- Simulate a poison message / forced exception in consumer
+- Simulate repeated consumer failure (poison message)
 
 **Expected**
 - After bounded retries, status becomes **FAILED**
-- Message is present in DLQ
-
+- Message is routed to **Dead Letter Queue (DLQ)**
 
 ## Future Validation (Planned)
 
