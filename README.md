@@ -91,9 +91,22 @@ The system was tested under failure conditions using controlled fault injection
   **PENDING → PROCESSING → READY / FAILED**
 
 ### Failure State Handling
-- Permanent failures persist as **FAILED**
+- Permanent failures persist as **FAILED** with error context
 - Failed jobs are not reprocessed automatically
-- DLQ contains messages exceeding retry limits
+- Messages exceeding retry limits are routed to a **Dead Letter Queue (DLQ)**
+
+## Observability
+
+The system exposes operational signals for debugging, monitoring, and failure analysis:
+
+- **Request traceability:** every request is identifiable via `docId` / `requestId` across API → Kafka → worker → DB
+- **ingest_accepted:** logs when ingestion is accepted at the API boundary
+- **e2e_latency_ms:** measures end-to-end ingestion latency (API accept → final state: `READY` / `FAILED`)
+- **Lifecycle visibility:** explicit state transitions (`PENDING → PROCESSING → READY / FAILED`) are logged
+- **Failure visibility:** retries and DLQ events are observable via logs
+- **System pressure:** `/api/system/pressure` exposes real-time workload (pending, processing, failed, ready)
+
+See `docs/observability/sample-logs.md` for real execution traces.
 
 ## Failure Proof (Reproducible)
 
