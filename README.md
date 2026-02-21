@@ -78,7 +78,7 @@ curl "http://localhost:8080/api/search?q=mvba&k=3"
 GET /api/ask
 curl "http://localhost:8080/api/ask?q=What%20is%20MVBA%3F&k=5"
 
-Quickstart
+**Quickstart**
 docker compose up
 ./mvnw spring-boot:run
 
@@ -89,7 +89,7 @@ docker compose up
 - State machine: PENDING → PROCESSING → READY / FAILED
 - Failure isolation: ingestion decoupled via Kafka
 
-Roadmap
+**Roadmap**
 - Observability (metrics + dashboards)
 - Performance benchmarking
 - Load testing under sustained ingestion
