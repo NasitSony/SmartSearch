@@ -95,6 +95,17 @@ The system was tested under failure conditions using controlled fault injection
 - Failed jobs are not reprocessed automatically
 - DLQ contains messages exceeding retry limits
 
+## Future Validation (Planned)
+
+The following scenarios are identified for further strengthening system robustness:
+
+- Concurrency validation with multiple workers (no duplicate processing)
+- High-load ingestion stability (100+ concurrent requests)
+- Kafka rebalance handling and safe recovery
+- Crash consistency edge cases (pre/post commit scenarios)
+- Observability improvements (latency, retries, DLQ metrics)
+- End-to-end request tracing via request_id  
+
 ------------------------------------------------------------------------
 
 ## API
@@ -126,3 +137,4 @@ docker compose up
 - Observability (metrics + dashboards)
 - Performance benchmarking
 - Load testing under sustained ingestion
+- Observability: latency, retry count, DLQ metrics
