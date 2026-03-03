@@ -4,15 +4,15 @@
 
 Fault-Aware Async Ingestion + Semantic Retrieval Backend
 
-A production-style backend that ingests documents asynchronously, generates embeddings, and serves semantic search and RAG — with explicit guarantees for # idempotency, crash recovery, and job lifecycle correctness.
+A production-style backend that ingests documents asynchronously, generates embeddings, and serves semantic search and RAG — with explicit guarantees for **idempotency, crash recovery, and job lifecycle correctness**.
 
 ---
 
 ## 🎯 What this project is
 
-This is not just another RAG demo.
+This is **not just another RAG demo**.
 
-It is a correctness-first ingestion and retrieval system designed to answer:
+It is a **correctness-first ingestion and retrieval system** designed to answer:
 
 ### What happens when things fail?
 - What if the worker crashes mid-processing?
