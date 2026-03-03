@@ -14,7 +14,7 @@ This is not just another RAG demo.
 
 It is a correctness-first ingestion and retrieval system designed to answer:
 
-# What happens when things fail?
+### What happens when things fail?
 - What if the worker crashes mid-processing?
 - What if Kafka replays messages?
 - What if the database goes down?
