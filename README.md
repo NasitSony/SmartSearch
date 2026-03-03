@@ -140,6 +140,25 @@ System exposes:
 - No partial chunk visibility
 - Consistent DB state after recovery
 
+## 🔒 System Invariants
+
+- Lifecycle invariant:
+  requestId transitions monotonically:
+  PENDING → PROCESSING → READY | FAILED
+  (no backward transitions)
+
+- Idempotency invariant:
+  Reprocessing the same request does not change final DB state.
+
+- Visibility invariant:
+  A document is searchable iff state == READY.
+
+- Failure isolation invariant:
+  A FAILED job does not corrupt other documents.
+
+- Recovery invariant:
+  After crash/restart, system state = last committed DB state + replay-safe Kafka processing.
+
 ## ⚠️ Failure Matrix
 | Failure Scenario            | Expected Behavior                                |
 | --------------------------- | ------------------------------------------------ |
@@ -226,6 +245,20 @@ That’s what differentiates:
 - demos -> production systems
 - prototypes -> infrastructure
 
+## ⚖️ Design Tradeoffs
+
+- At-least-once vs Exactly-once:
+  Chose at-least-once + idempotency for simplicity and robustness.
+
+- Kafka vs Direct Processing:
+  Kafka adds operational complexity but enables replay and durability.
+
+- Async vs Sync ingestion:
+  Async improves resilience and scalability but introduces eventual consistency.
+
+- Postgres + pgvector vs Dedicated Vector DB:
+  Simpler stack and transactional guarantees, but not optimized for very large-scale vector search. 
+
 ## 🧭 Future Work
 - Exactly-once semantics (Kafka transactions)
 - Distributed workers + partition-aware scaling
@@ -242,7 +275,7 @@ It is designed as a **foundation layer for reliable AI systems**.
 
 ## 💡 Author Note
 This system reflects a broader focus on:
--fault tolerance
+- fault tolerance
 - correctness guarantees
 - distributed system design
 
