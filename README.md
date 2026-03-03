@@ -1,10 +1,14 @@
 # SmartSearch — Fault-Aware Asynchronous Ingestion + Semantic Retrieval
 
-SmartSearch is a production-style backend designed to maintain **correctness under failure**.
+🚀 SmartSearch
 
-It ingests documents via **Kafka-based asynchronous processing**, persists embeddings in **Postgres/pgvector**, and exposes semantic search and RAG APIs and ensures **idempotency, retry safety, and explicit job state tracking**.
+Fault-Aware Async Ingestion + Semantic Retrieval Backend
+
+A production-style backend that ingests documents asynchronously, generates embeddings, and serves semantic search and RAG — with explicit guarantees for ## idempotency, crash recovery, and job lifecycle correctness.
 
 ---
+
+## 🎯 What this project is
 
 ## Why this is not another RAG demo
 
