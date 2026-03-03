@@ -90,6 +90,16 @@ PENDING -> PROCESSING -> READY | FAILED
 - no duplicate embeddings
 - safe reprocessing
 
+🔴 **Stage 4 — Failure handling + retries**
+- Worker retries failed jobs (bounded attempts)
+- After retry exhaustion:
+  - job marked FAILED
+  - message sent to DLQ
+
+✔️ Guarantees:
+- no infinite retry loops
+- bad data is isolated
+
 ## Core Capabilities
 
 - Event-driven ingestion pipeline (API → Kafka → Worker → Postgres)
