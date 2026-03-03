@@ -70,6 +70,11 @@ Client -> API -> Kafka -> Worker -> Postgres (pgvector) -> Search / RAG
 - retry support
 - resilience
 
+🟠 **Stage 2 — Job lifecycle state machine**
+
+Each request has explicit states:
+PENDING -> PROCESSING -> READY | FAILED
+
 ## Core Capabilities
 
 - Event-driven ingestion pipeline (API → Kafka → Worker → Postgres)
