@@ -49,6 +49,17 @@ Client -> API -> Kafka -> Worker -> Postgres (pgvector) -> Search / RAG
 - ***Postgres + pgvector***
   - Stores embeddings
   - Enables similarity search
+ 
+## 📈 System Evolution (KV-Engine Style)
+## 🟢 Stage 0 — Synchronous ingestion (baseline)
+  API directly:
+  - generates embeddings
+  - stores in DB
+
+❌ Problems:
+- slow
+- no retry
+- no failure recovery
 
 ## Core Capabilities
 
