@@ -20,7 +20,7 @@ It is a **correctness-first ingestion and retrieval system** designed to answer:
 - What if the database goes down?
 - What if duplicate requests arrive?
 
-
+This system is built to **handle those scenarios deterministically**.
 ## Why this is not another RAG demo
 
 - **Crash recovery:** worker failures do not lose data — ingestion resumes safely
