@@ -32,7 +32,14 @@ This system is built to **handle those scenarios deterministically**.
 
 ## 🏗️ Architecture Overview
 
-Client -> API -> Kafka -> Worker -> Postgres (pgvector) -> Search / RAG
+<p align="center">
+  <img src="docs/images/Architecture.png" width="400"/>
+</p>
+
+<p align="center">
+  <em>End-to-end architecture: API → Kafka → Async Workers → pgvector → Vector Search</em>
+</p>
+
 
 **Components**
 - ***API Service***
@@ -146,181 +153,99 @@ System exposes:
 
 ------------------------------------------------------------------------
 
-## 🧠 SmartSearch Architecture
+## 🧪 Failure Proof (Reproducible Tests)
+**T1 — Crash mid-processing**
+- Submit document
+- Kill worker during processing
 
-<p align="center">
-  <img src="docs/images/Architecture.png" width="800"/>
-</p>
+✔️ Expected:
+- Job resumes
+- No duplicate chunks
 
-<p align="center">
-  <em>End-to-end architecture: API → Kafka → Async Workers → pgvector → Vector Search</em>
-</p>
+**T2 — Crash after DB write**
+- Kill worker after write but before commit acknowledgment
 
+✔️ Expected:
+- Reprocessing occurs
+- No duplicates (idempotency holds)
 
-
-### Architecture Notes
-
-The system uses Kafka to decouple ingestion from processing, enabling
-failure recovery, retry handling, and consistent state transitions
-without blocking API responsiveness.
-
-## System Guarantees
-
-- At-least-once ingestion with retry safety
-- No duplicate chunks under Kafka replay
-- Crash-safe processing with no data corruption
-- Deterministic job state transitions (PENDING → PROCESSING → READY / FAILED)
-
-## Failure Scenarios (Validated)
-
-The system was tested under failure conditions using controlled fault injection
-(process termination, Kafka interruption, DB unavailability, and message replay).
-
-### Worker & Crash Resilience
-- Worker killed mid-processing → message is reprocessed safely
-- Worker killed after DB write → no duplicate chunks created
-- Worker restart → resumes from correct Kafka offset
-- Kafka broker stopped → worker recovers after restart
-- Database unavailable → retries succeed without data loss
-
-### Retry & Idempotency
-- Consumer exceptions trigger bounded retries
-- Retry exhaustion → job marked as **FAILED** and sent to DLQ
-- Kafka message replay → no duplicate chunks (idempotent writes)
-- Duplicate API requests → same `requestId` handled safely
-
-### Ordering & Offset Correctness
-- Burst ingestion (20+ messages) → all messages processed
-- Worker restart mid-burst → no message loss
-- Kafka offset progression remains correct and monotonic
-
-### End-to-End Validation
-- Single document ingestion → SUCCESS
-- Bulk ingestion (10–50 docs) → all succeed
-- Large document ingestion → no timeout or partial state
-- Post-ingestion search → returns correct chunks
-
-### Database Consistency
-- No stuck PENDING jobs after recovery
-- No partial or half-written chunk state
-- Correct lifecycle transitions:
-  **PENDING → PROCESSING → READY / FAILED**
-
-### Failure State Handling
-- Permanent failures persist as **FAILED** with error context
-- Failed jobs are not reprocessed automatically
-- Messages exceeding retry limits are routed to a **Dead Letter Queue (DLQ)**
-
-## Observability
-
-The system exposes operational signals for debugging, monitoring, and failure analysis:
-
-- **Request traceability:** every request is identifiable via `docId` / `requestId` across API → Kafka → worker → DB
-- **ingest_accepted:** logs when ingestion is accepted at the API boundary
-- **e2e_latency_ms:** measures end-to-end ingestion latency (API accept → final state: `READY` / `FAILED`)
-- **Lifecycle visibility:** explicit state transitions (`PENDING → PROCESSING → READY / FAILED`) are logged
-- **Failure visibility:** retries and DLQ events are observable via logs
-- **System pressure:** `/api/system/pressure` exposes real-time workload (pending, processing, failed, ready)
-
-See `docs/observability/sample-logs.md` for real execution traces.
-
-## Failure Proof (Reproducible)
-
-These scenarios were validated locally using controlled failure injection
-(process termination, service restart, Kafka/DB interruption, and message replay).
-
-### 1) Service crash mid-processing
-**Action**
-- Submit a document
-- Kill the Spring Boot process during ingestion
-
-**Expected**
-- Job remains in PROCESSING and resumes after restart
-- Message is reprocessed safely
-- No duplicate chunks are created
-
----
-
-### 2) Crash during persistence (duplicate safety)
-**Action**
-- Terminate service while chunks are being inserted
-
-**Expected**
-- On restart, ingestion may reprocess the message
-- Idempotent persistence prevents duplicate chunks
-
----
-
-### 3) Kafka interruption
-**Action**
-- Stop Kafka broker
+**T3 — Kafka restart**
+- Stop Kafka during ingestion
 - Restart Kafka
 
-**Expected**
-- Consumer resumes processing after broker recovery
+✔️ Expected:
+- Worker resumes
 - No message loss
 
----
+**T4 — Database outage**
+- Stop Postgres
+- Submit job
+- Restart DB
 
-### 4) Database interruption
-**Action**
-- Stop PostgreSQL
-- Restart PostgreSQL
+✔️ Expected:
+- Worker retries
+- Job becomes READY or FAILED
 
-**Expected**
-- Worker retries ingestion
-- Job completes as READY or FAILED with visible state
+**T5 — Poison message**
+- Submit malformed document
 
----
+✔️ Expected:
+- Retries attempted
+- Job marked FAILED
+- Message sent to DLQ
 
-### 5) Retry exhaustion → FAILED + DLQ
-**Action**
-- Simulate repeated consumer failure (poison message)
-
-**Expected**
-- After bounded retries, status becomes **FAILED**
-- Message is routed to **Dead Letter Queue (DLQ)**
-
-## Future Validation (Planned)
-
-The following scenarios are identified for further strengthening system robustness:
-
-- Concurrency validation with multiple workers (no duplicate processing)
-- High-load ingestion stability (100+ concurrent requests)
-- Kafka rebalance handling and safe recovery
-- Crash consistency edge cases (pre/post commit scenarios)
-- Observability improvements (latency, retries, DLQ metrics)
-- End-to-end request tracing via request_id  
-
-------------------------------------------------------------------------
-
-## API
-
-### POST /api/documents
+## 🔍 API Endpoints (example)
+**Ingestion**
 ```bash
-curl -X POST http://localhost:8080/api/documents \
-  -H "Content-Type: application/json" \
-  -d '{"requestId":"doc-1","text":"..."}'
+POST /api/documents
+```
+**Search**
+```bash
+GET /api/search?q=...
+```
 
-GET /api/search
-curl "http://localhost:8080/api/search?q=mvba&k=3"
+**RAG**
+```bash
+POST /api/rag
+```
 
-GET /api/ask
-curl "http://localhost:8080/api/ask?q=What%20is%20MVBA%3F&k=5"
+**System Pressure**
+```bash
+GET /api/system/pressure
+```
 
-**Quickstart**
-docker compose up
-./mvnw spring-boot:run
+## 🚀 Why this matters
+Most AI systems focus on:
+- embeddings
+- LLMs
+- retrieval quality
 
+This project focuses on:
+ **What happens when the system breaks.**
+That’s what differentiates:
+- demos -> production systems
+- prototypes -> infrastructure
 
-**Key Design Decisions**
-- Idempotency: requestId uniqueness prevents duplicate ingestion
-- At-least-once processing: Kafka retries + safe replay handling
-- State machine: PENDING → PROCESSING → READY / FAILED
-- Failure isolation: ingestion decoupled via Kafka
+## 🧭 Future Work
+- Exactly-once semantics (Kafka transactions)
+- Distributed workers + partition-aware scaling
+- Backpressure-aware scheduling
+- Streaming ingestion
+- BFT-style replicated ingestion pipeline (long-term vision)
 
-**Roadmap**
-- Observability (metrics + dashboards)
-- Performance benchmarking
-- Load testing under sustained ingestion
-- Observability: latency, retry count, DLQ metrics
+## 🔗 Positioning
+This project sits at the intersection of:
+- Distributed systems
+- AI infrastructure
+- Fault-tolerant pipelines
+It is designed as a **foundation layer for reliable AI systems**.
+
+## 💡 Author Note
+This system reflects a broader focus on:
+-fault tolerance
+- correctness guarantees
+- distributed system design
+
+Similar to how storage engines ensure durability and consistency,
+this system ensures **reliable AI data pipelines under failure**.
+
