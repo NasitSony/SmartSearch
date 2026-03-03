@@ -116,15 +116,32 @@ System exposes:
 - system is observable
 - failures are visible
 
-## Core Capabilities
 
-- Event-driven ingestion pipeline (API → Kafka → Worker → Postgres)
-- Idempotent chunk storage preventing duplicate writes
-- Stateful job lifecycle tracking (PENDING → PROCESSING → READY / FAILED)
-- Semantic retrieval via pgvector similarity search
-- RAG-based question answering with grounded citations
+## ✅ System Guarantees
+**Correctness**
+- At-least-once ingestion (via Kafka)
+- Idempotent processing (no duplicate chunks)
+- Deterministic job lifecycle
 
-  
+**Failure Safety**
+- Worker crash does not corrupt state
+- Partial processing is recoverable
+- Retries are safe
+
+**Data Integrity**
+- No duplicate embeddings
+- No partial chunk visibility
+- Consistent DB state after recovery
+
+## ⚠️ Failure Matrix
+| Failure Scenario            | Expected Behavior                                |
+| --------------------------- | ------------------------------------------------ |
+| Worker crash mid-processing | Job is retried and completes successfully        |
+| Worker crash after DB write | Reprocessing occurs but duplicates are prevented |
+| Kafka broker restart        | Processing resumes with no data loss             |
+| Postgres outage             | Worker retries; job eventually READY or FAILED   |
+| Poison message              | Retries exhausted → FAILED + DLQ                 |
+| Duplicate request           | No duplicate embeddings created                  |
 
 
 ------------------------------------------------------------------------
