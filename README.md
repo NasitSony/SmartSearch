@@ -61,6 +61,15 @@ Client -> API -> Kafka -> Worker -> Postgres (pgvector) -> Search / RAG
  - no retry
  - no failure recovery
 
+🟡 **Stage 1 — Asynchronous ingestion**
+- API produces message to Kafka
+- Worker processes asynchronously
+
+✔️ Benefits:
+- decoupling
+- retry support
+- resilience
+
 ## Core Capabilities
 
 - Event-driven ingestion pipeline (API → Kafka → Worker → Postgres)
