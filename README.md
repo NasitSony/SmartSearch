@@ -21,14 +21,12 @@ It is a **correctness-first ingestion and retrieval system** designed to answer:
 - What if duplicate requests arrive?
 
 This system is built to **handle those scenarios deterministically**.
-## Why this is not another RAG demo
 
-- **Crash recovery:** worker failures do not lose data — ingestion resumes safely
-- **Idempotency:** duplicate requests and Kafka replays do not create duplicate chunks
-- **Explicit lifecycle:** PENDING → PROCESSING → READY / FAILED
-- **Retry system:** failed or stuck jobs can be retried or republished safely
-- **Backpressure visibility:** `/api/system/pressure` exposes system load in real time
-- **Fast-fail safety:** ingestion is rejected if the database is unavailable
+## 🧠 Core Design Philosophy
+- Correctness over convenience
+- Explicit state over hidden progress
+- Failure-aware design
+- Deterministic recovery
 
 ---
 
