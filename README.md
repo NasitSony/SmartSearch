@@ -100,6 +100,22 @@ PENDING -> PROCESSING -> READY | FAILED
 - no infinite retry loops
 - bad data is isolated
 
+🟣 **Stage 5 — Observability**
+
+System exposes:
+- /api/system/pressure
+  - pending jobs
+  - processing jobs
+  - failed jobs
+  - ready jobs
+- logs:
+  - job transitions
+  - end-to-end latency
+
+✔️ Guarantees:
+- system is observable
+- failures are visible
+
 ## Core Capabilities
 
 - Event-driven ingestion pipeline (API → Kafka → Worker → Postgres)
