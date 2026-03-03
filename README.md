@@ -73,12 +73,22 @@ Client -> API -> Kafka -> Worker -> Postgres (pgvector) -> Search / RAG
 🟠 **Stage 2 — Job lifecycle state machine**
 
 Each request has explicit states:
- PENDING -> PROCESSING -> READY | FAILED
+PENDING -> PROCESSING -> READY | FAILED
 
 ✔️ Guarantees:
 - no hidden progress
 - observable system state
-- debuggable failures 
+- debuggable failures
+
+🔵 **Stage 3 — Idempotent ingestion**
+- Duplicate messages (Kafka replay / retries) are safe
+- Enforced via:
+  - unique constraints (e.g., docId + chunkId)
+  - deterministic writes
+
+✔️ Guarantees:
+- no duplicate embeddings
+- safe reprocessing
 
 ## Core Capabilities
 
