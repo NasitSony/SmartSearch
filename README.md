@@ -30,6 +30,29 @@ This system is built to **handle those scenarios deterministically**.
 
 ---
 
+## 🏗️ Architecture Overview
+
+Client -> API -> Kafka -> Worker -> Postgres (pgvector) -> Search / RAG
+
+**Components**
+- ***API Service***
+  - Accepts ingestion requests
+  - Produces messages to Kafka
+  - Exposes search + RAG endpoints
+
+- ***Kafka***
+  - Decouples ingestion from processing
+  - Enables retry and replay
+
+- ***Worker***
+  - Consumes messages
+  - Generates embeddings
+  - Writes to Postgres
+
+- ***Postgres + pgvector***
+  - Stores embeddings
+  - Enables similarity search
+
 ## Core Capabilities
 
 - Event-driven ingestion pipeline (API → Kafka → Worker → Postgres)
