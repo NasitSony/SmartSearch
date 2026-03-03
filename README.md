@@ -10,6 +10,17 @@ A production-style backend that ingests documents asynchronously, generates embe
 
 ## 🎯 What this project is
 
+This is not just another RAG demo.
+
+It is a correctness-first ingestion and retrieval system designed to answer:
+
+# What happens when things fail?
+- What if the worker crashes mid-processing?
+- What if Kafka replays messages?
+- What if the database goes down?
+- What if duplicate requests arrive?
+
+
 ## Why this is not another RAG demo
 
 - **Crash recovery:** worker failures do not lose data — ingestion resumes safely
