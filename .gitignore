@@ -1,20 +1,28 @@
 HELP.md
+
+### Maven ###
 target/
-.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
 
-### STS ###
+.mvn/wrapper/maven-wrapper.jar
+
+### OS files ###
+.DS_Store
+
+### Eclipse / STS ###
+.metadata/
 .apt_generated
+.apt_generated_tests
 .classpath
 .factorypath
 .project
-.settings
+.settings/
 .springBeans
 .sts4-cache
 
 ### IntelliJ IDEA ###
-.idea
+.idea/
 *.iws
 *.iml
 *.ipr
@@ -25,10 +33,15 @@ target/
 /dist/
 /nbdist/
 /.nb-gradle/
+
+### VS Code ###
+.vscode/
+
+### Build folders ###
 build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
-### VS Code ###
-.vscode/
-/.apt_generated_tests/
+### Compiled Java ###
+*.class
+src/bin/
