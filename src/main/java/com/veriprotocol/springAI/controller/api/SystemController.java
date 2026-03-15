@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.veriprotocol.springAI.persistance.DocumentReadDao;
+import com.veriprotocol.springAI.persistence.DocumentReadDao;
 
 @RestController
 @RequestMapping("/api")

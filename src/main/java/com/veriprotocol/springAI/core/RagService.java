@@ -9,7 +9,7 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.stereotype.Service;
 
-import com.veriprotocol.springAI.persistance.ChunkSearchDao;
+import com.veriprotocol.springAI.persistence.ChunkSearchDao;
 
 @Service
 public class RagService {

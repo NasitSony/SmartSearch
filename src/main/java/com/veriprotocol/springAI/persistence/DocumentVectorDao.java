@@ -1,4 +1,4 @@
-package com.veriprotocol.springAI.persistance;
+package com.veriprotocol.springAI.persistence;
 
 import org.springframework.stereotype.Repository;
 import java.time.Instant;

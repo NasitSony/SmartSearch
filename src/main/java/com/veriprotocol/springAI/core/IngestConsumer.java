@@ -5,7 +5,7 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 import org.springframework.kafka.support.Acknowledgment;
 
-import com.veriprotocol.springAI.persistance.DocumentReadDao;
+import com.veriprotocol.springAI.persistence.DocumentReadDao;
 
 import jakarta.annotation.PostConstruct;
 

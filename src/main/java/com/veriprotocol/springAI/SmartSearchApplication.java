@@ -8,10 +8,10 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication(scanBasePackages = "com.veriprotocol.springAI")
 @EnableScheduling
 @EnableKafka
-public class SpringAiApplication {
+public class SmartSearchApplication {
 //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
 	public static void main(String[] args) {
-		SpringApplication.run(SpringAiApplication.class, args);
+		SpringApplication.run(SmartSearchApplication.class, args);
 	}
 
 }

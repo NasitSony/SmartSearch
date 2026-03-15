@@ -1,4 +1,4 @@
-package com.veriprotocol.springAI.persistance;
+package com.veriprotocol.springAI.persistence;
 
 //import com.networknt.schema.OutputFormat.List;
 import java.util.List;

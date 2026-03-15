@@ -19,7 +19,7 @@ import com.veriprotocol.springAI.controller.api.dto.DocumentStatusDto;
 import com.veriprotocol.springAI.core.DbHealth;
 import com.veriprotocol.springAI.core.DocumentService;
 import com.veriprotocol.springAI.core.RagService;
-import com.veriprotocol.springAI.persistance.ChunkSearchDao;
+import com.veriprotocol.springAI.persistence.ChunkSearchDao;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

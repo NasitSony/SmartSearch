@@ -8,7 +8,7 @@ import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.embedding.EmbeddingResponse;
 import org.springframework.stereotype.Service;
 
-import com.veriprotocol.springAI.persistance.DocumentChunkWriteDao;
+import com.veriprotocol.springAI.persistence.DocumentChunkWriteDao;
 
 @Service
 public class EmbeddingService {

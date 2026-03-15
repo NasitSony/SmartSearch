@@ -1,4 +1,4 @@
-package com.veriprotocol.springAI.persistance;
+package com.veriprotocol.springAI.persistence;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;

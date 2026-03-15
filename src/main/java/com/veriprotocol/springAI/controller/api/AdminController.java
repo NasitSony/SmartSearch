@@ -11,8 +11,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.veriprotocol.springAI.controller.api.dto.DocumentStatusDto;
 import com.veriprotocol.springAI.core.IngestProducer;
-import com.veriprotocol.springAI.persistance.DocumentReadDao;
-import com.veriprotocol.springAI.persistance.DocumentWriteDao;
+import com.veriprotocol.springAI.persistence.DocumentReadDao;
+import com.veriprotocol.springAI.persistence.DocumentWriteDao;
 
 import lombok.RequiredArgsConstructor;
 

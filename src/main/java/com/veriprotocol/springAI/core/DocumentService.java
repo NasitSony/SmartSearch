@@ -12,14 +12,14 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 
 import com.veriprotocol.springAI.controller.api.dto.DocumentStatusDto;
-import com.veriprotocol.springAI.persistance.ChunkSearchDao;
-import com.veriprotocol.springAI.persistance.DocumentChunkWriteDao;
-import com.veriprotocol.springAI.persistance.DocumentEntity;
-import com.veriprotocol.springAI.persistance.DocumentReadDao;
-import com.veriprotocol.springAI.persistance.DocumentRepository;
-import com.veriprotocol.springAI.persistance.DocumentStatus;
-import com.veriprotocol.springAI.persistance.DocumentWriteDao;
-import com.veriprotocol.springAI.persistance.PgVector;
+import com.veriprotocol.springAI.persistence.ChunkSearchDao;
+import com.veriprotocol.springAI.persistence.DocumentChunkWriteDao;
+import com.veriprotocol.springAI.persistence.DocumentEntity;
+import com.veriprotocol.springAI.persistence.DocumentReadDao;
+import com.veriprotocol.springAI.persistence.DocumentRepository;
+import com.veriprotocol.springAI.persistence.DocumentStatus;
+import com.veriprotocol.springAI.persistence.DocumentWriteDao;
+import com.veriprotocol.springAI.persistence.PgVector;
 
 import lombok.extern.slf4j.Slf4j;
 
