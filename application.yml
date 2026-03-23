@@ -1,8 +1,8 @@
 spring:
   datasource:
     host: localhost
-    port: 5433
-    url: jdbc:postgresql://localhost:5433/smartsearch?connectTimeout=2&socketTimeout=2&loginTimeout=2
+    port: 5434
+    url: jdbc:postgresql://localhost:5434/smartsearch?connectTimeout=2&socketTimeout=2&loginTimeout=2
     username: smartsearch
     password: password
   main:
@@ -97,7 +97,14 @@ management:
     endpoint:
       health:
         show-details: always
-
+        show-components: always
+    prometheus:
+      metrics:
+        export:
+          enabled: true
+    metrics:
+      tags:
+        application: smartsearch
 logging:
   pattern:
     console: "%d{HH:mm:ss.SSS} %-5level [%thread] %logger{36} docId=%X{docId} workerId=%X{workerId} - %msg%n"

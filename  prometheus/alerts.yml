@@ -1,0 +1,20 @@
+groups:
+  - name: smartsearch-alerts
+    rules:
+      - alert: SmartSearchAppDown
+        expr: up{job="smartsearch-app"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "SmartSearch app is down"
+          description: "Prometheus cannot scrape the SmartSearch app."
+
+      - alert: PrometheusDown
+        expr: up{job="prometheus"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Prometheus is down"
+          description: "Prometheus cannot scrape itself."
