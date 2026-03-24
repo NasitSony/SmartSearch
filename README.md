@@ -172,6 +172,67 @@ System exposes:
 
 ------------------------------------------------------------------------
 
+## Observability & Monitoring
+
+SmartSearch includes a full observability stack using Prometheus and Grafana to monitor system behavior, performance, and reliability.
+
+### Metrics
+
+The system exposes metrics via Spring Boot Actuator and Micrometer:
+
+- HTTP request rate and latency
+- Ingestion pipeline metrics:
+  - received, succeeded, failed, retries, DLQ
+- **Processing age (staleness metric)**:
+  - Measures how long a job waits before being processed
+  - Helps detect backlog and async system pressure
+- Database metrics:
+  - Hikari connection pool (active, idle, total)
+  - DB write throughput
+
+### Dashboards
+
+#### 1. Pipeline Overview
+- Requests/sec
+- Ingest success/failure/retry
+- Latency and DLQ
+
+#### 2. Kafka & Worker
+- Success vs failure rates
+- Retry behavior
+- Worker health
+- **Processing age (key signal for backlog detection)**
+
+#### 3. DB & Persistence
+- Connection pool usage
+- DB latency signals
+- Write throughput
+
+### Local Setup
+
+```bash
+docker compose up -d
+```
+
+Access:
+
+- Grafana: http://localhost:3000
+- Prometheus: http://localhost:9090
+
+- # 📸 Screenshot (VERY IMPORTANT)
+
+
+
+👉 Dashboard 2 (Kafka & Worker)
+
+
+
+
+Save as:
+```text
+docs/dashboard-kafka-worker.png
+
+
 ## 🧪 Failure Proof (Reproducible Tests)
 **T1 — Crash mid-processing**
 - Submit document
