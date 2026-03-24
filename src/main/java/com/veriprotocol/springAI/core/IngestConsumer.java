@@ -1,5 +1,8 @@
 package com.veriprotocol.springAI.core;
 
+import java.time.Duration;
+import java.time.OffsetDateTime;
+
 import org.slf4j.MDC;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
@@ -7,7 +10,11 @@ import org.springframework.kafka.support.Acknowledgment;
 
 import com.veriprotocol.springAI.persistence.DocumentReadDao;
 
+
 import jakarta.annotation.PostConstruct;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.DistributionSummary;
+import io.micrometer.core.instrument.MeterRegistry;
 
 //import com.veriprotocol.springAI.core.DocumentService;
 //import com.veriprotocol.springAI.core.IngestRequestEvent;
@@ -27,17 +34,32 @@ public class IngestConsumer {
     private final IngestMetrics ingestMetrics;
     private final DocumentService documentService;
     private final DocumentReadDao documentReadDao;
+    private final DistributionSummary processingAge;
+    private final MeterRegistry meterRegistry;
+    private final Counter dbWriteCounter;
 
     public IngestConsumer(
             WorkerIdentity workerIdentity,
             DocumentService documentService,
             IngestMetrics ingestMetrics,
-            DocumentReadDao documentReadDao
+            DocumentReadDao documentReadDao,
+           // DistributionSummary processingAge,
+            MeterRegistry meterRegistry
+            
     ) {
         this.workerIdentity = workerIdentity;
         this.documentService = documentService;
         this.ingestMetrics = ingestMetrics;
         this.documentReadDao = documentReadDao;
+        this.meterRegistry = meterRegistry;
+        this.dbWriteCounter = Counter.builder("smartsearch_db_write_total")
+                .description("Total DB writes")
+                .register(meterRegistry);
+        this.processingAge = DistributionSummary.builder("smartsearch_processing_age_seconds")
+                .description("Age of document when processing begins")
+                .register(meterRegistry);
+       
+        
     }
 
     @KafkaListener(
@@ -51,22 +73,27 @@ public class IngestConsumer {
         MDC.put("docId", docId);
         var st0 = documentReadDao.findStatusById(docId).orElseThrow();
         var createdAt = st0.createdAt();   // OffsetDateTime captured ONCE
+        var status = documentReadDao.findStatusById(docId)
+                .orElseThrow(() -> new IllegalStateException("Doc not found: " + docId));
+
+        long ageSeconds = Math.max(0, Duration.between(status.createdAt(), OffsetDateTime.now()).getSeconds());
 
         try {
             log.info("📥 Received ingest event for docId={}", docId);
             
-            
-
+           
             // 1) Optional idempotency check via status
             var statusOpt = documentReadDao.findStatusById(docId);
             if (statusOpt.isEmpty()) {
                 throw new IllegalStateException("Doc not found: " + docId);
             }
-            var status = statusOpt.get();
+           // var status = statusOpt.get();
             if ("READY".equals(status.status())) { // your DB uses READY, not SUCCESS
                 log.info("✅ Already READY, skipping {}", docId);
                 return;
             }
+            
+            processingAge.record(ageSeconds);
             
             
 
@@ -95,6 +122,8 @@ public class IngestConsumer {
 
             // 5) Mark READY
             documentService.markReadyDb(docId);
+         // AFTER success
+            dbWriteCounter.increment();
             log.info("WROTE_CHUNKS_TO_DB_SLEEPING_BEFORE_COMMIT docId={}", docId);
             long e2eMs = java.time.Duration.between(createdAt.toInstant(), java.time.Instant.now()).toMillis();
             log.info("metric=e2e_latency_ms docId={} value={} status=READY", docId, e2eMs);
