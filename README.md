@@ -3,7 +3,7 @@
 ![Java](https://img.shields.io/badge/java-21-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Last Commit](https://img.shields.io/github/last-commit/NasitSony/SmartSearch)
-![Stars](https://img.shields.io/github/stars/NasitSony/SmartSearch?style=social&label=Stars)
+[![Stars](https://img.shields.io/github/stars/NasitSony/SmartSearch)](https://github.com/NasitSony/SmartSearch/stargazers)
 
 # SmartSearch — Fault-Aware Asynchronous Ingestion + Semantic Retrieval
 
